@@ -3,7 +3,7 @@ package com.aeroncookbook.archive.multihost;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.AgentRunner;
 import org.agrona.concurrent.ShutdownSignalBarrier;
-import org.agrona.concurrent.SleepingMillisIdleStrategy;
+import org.agrona.concurrent.NoOpIdleStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ public class ArchiveClient
             final ArchiveClientAgent hostAgent =
                 new ArchiveClientAgent(archiveHost, thisHost, controlChannelPort, eventChannelPort, fragmentHandler);
             final AgentRunner runner =
-                new AgentRunner(new SleepingMillisIdleStrategy(), ArchiveClient::errorHandler, null, hostAgent);
+                new AgentRunner(new NoOpIdleStrategy(), ArchiveClient::errorHandler, null, hostAgent);
             AgentRunner.startOnThread(runner);
 
             barrier.await();

@@ -11,7 +11,7 @@ import org.agrona.CloseHelper;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SleepingMillisIdleStrategy;
+import org.agrona.concurrent.NoOpIdleStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,20 +48,20 @@ public class ArchiveClientAgent implements Agent
         this.archiveControlPort = archiveControlPort;
         this.archiveEventPort = archiveEventPort;
         this.fragmentHandler = fragmentHandler;
-        this.idleStrategy = new SleepingMillisIdleStrategy(250);
+        this.idleStrategy = new NoOpIdleStrategy();
 
         LOGGER.info("launching media driver");
         //launch a media driver
         this.mediaDriver = MediaDriver.launch(new MediaDriver.Context()
             .dirDeleteOnStart(true)
-            .threadingMode(ThreadingMode.SHARED)
-            .sharedIdleStrategy(new SleepingMillisIdleStrategy()));
+            .threadingMode(ThreadingMode.DEDICATED)
+            .sharedIdleStrategy(new NoOpIdleStrategy()));
 
         LOGGER.info("connecting aeron; media driver directory {}", mediaDriver.aeronDirectoryName());
         //connect an aeron client
         this.aeron = Aeron.connect(new Aeron.Context()
             .aeronDirectoryName(mediaDriver.aeronDirectoryName())
-            .idleStrategy(new SleepingMillisIdleStrategy()));
+            .idleStrategy(new NoOpIdleStrategy()));
 
         this.currentState = State.AERON_READY;
     }

@@ -18,7 +18,7 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SleepingMillisIdleStrategy;
+import org.agrona.concurrent.NoOpIdleStrategy;
 import org.agrona.concurrent.SystemEpochClock;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersReader;
@@ -50,7 +50,6 @@ public class ArchiveHostAgent implements Agent
     private RecordingEventsAdapter recordingEventsAdapter;
     private AeronArchive archive;
     private Publication publication;
-    private long nextAppend = Long.MIN_VALUE;
     private long lastSeq = 0;
     private State currentState;
 
@@ -59,7 +58,7 @@ public class ArchiveHostAgent implements Agent
         this.host = localHost(host);
         this.controlChannelPort = controlChannelPort;
         this.recordingEventsPort = recordingEventsPort;
-        this.idleStrategy = new SleepingMillisIdleStrategy();
+        this.idleStrategy = new NoOpIdleStrategy();
         this.archivingMediaDriver = launchMediaDriver(host, controlChannelPort, recordingEventsPort);
         this.mutableDirectBuffer = new UnsafeBuffer(ByteBuffer.allocate(Long.BYTES));
         this.aeron = launchAeron(archivingMediaDriver);
@@ -75,7 +74,7 @@ public class ArchiveHostAgent implements Agent
         return Aeron.connect(new Aeron.Context()
             .aeronDirectoryName(archivingMediaDriver.mediaDriver().aeronDirectoryName())
             .errorHandler(this::errorHandler)
-            .idleStrategy(new SleepingMillisIdleStrategy()));
+            .idleStrategy(new NoOpIdleStrategy()));
     }
 
     private ArchivingMediaDriver launchMediaDriver(String host, int controlChannelPort, int recordingEventsPort)
@@ -90,14 +89,14 @@ public class ArchiveHostAgent implements Agent
             .errorHandler(this::errorHandler)
             .controlChannel(controlChannel)
             .recordingEventsChannel(recordingEventsChannel)
-            .idleStrategySupplier(SleepingMillisIdleStrategy::new)
-            .threadingMode(ArchiveThreadingMode.SHARED);
+            .idleStrategySupplier(NoOpIdleStrategy::new)
+            .threadingMode(ArchiveThreadingMode.DEDICATED);
 
         final MediaDriver.Context mediaDriverContext = new MediaDriver.Context()
             .spiesSimulateConnection(true)
             .errorHandler(this::errorHandler)
-            .threadingMode(ThreadingMode.SHARED)
-            .sharedIdleStrategy(new SleepingMillisIdleStrategy())
+            .threadingMode(ThreadingMode.DEDICATED)
+            .sharedIdleStrategy(new NoOpIdleStrategy())
             .dirDeleteOnStart(true);
 
         return ArchivingMediaDriver.launch(mediaDriverContext, archiveContext);
@@ -148,7 +147,6 @@ public class ArchiveHostAgent implements Agent
         lastSeq += 1;
         mutableDirectBuffer.putLong(0, lastSeq);
         publication.offer(mutableDirectBuffer, 0, Long.BYTES);
-        nextAppend = CLOCK.time() + 2000;
         LOGGER.info("appended {}", lastSeq);
     }
 
@@ -169,7 +167,7 @@ public class ArchiveHostAgent implements Agent
             .controlRequestChannel(controlRequestChannel)
             .controlResponseChannel(controlResponseChannel)
             .recordingEventsChannel(recordingEventsChannel)
-            .idleStrategy(new SleepingMillisIdleStrategy()));
+            .idleStrategy(new NoOpIdleStrategy()));
 
         LOGGER.info("creating publication");
 
