@@ -13,24 +13,25 @@ public class ArchiveReplicator
 
     public static void main(String[] args)
     {
-        final var archiveHost = System.getenv().get("ARCHIVEHOST");
-        final var thisHost = System.getenv().get("THISHOST");
-        final var controlPort = System.getenv().get("CONTROLPORT");
-        final var eventsPort = System.getenv().get("EVENTSPORT");
-        final var replayPort = System.getenv().get("REPLAYPORT");
+        final String archiveHost = System.getenv().get("ARCHIVEHOST");
+        final String thisHost = System.getenv().get("THISHOST");
+        final String controlPort = System.getenv().get("CONTROLPORT");
+        final String eventsPort = System.getenv().get("EVENTSPORT");
+        final String replayPort = System.getenv().get("REPLAYPORT");
 
         if (archiveHost == null || controlPort == null || eventsPort == null)
         {
             LOGGER.error("requires 5 env vars: ARCHIVEHOST, THISHOST, CONTROLPORT, EVENTSPORT, REPLAYPORT");
         } else
         {
-            final var controlChannelPort = Integer.parseInt(controlPort);
-            final var recEventsChannelPort = Integer.parseInt(eventsPort);
-            final var replayChannelPort = Integer.parseInt(replayPort);
-            final var barrier = new ShutdownSignalBarrier();
-            final var hostAgent = new ArchiveReplicatorAgent(thisHost, archiveHost, controlChannelPort,
+            final int controlChannelPort = Integer.parseInt(controlPort);
+            final int recEventsChannelPort = Integer.parseInt(eventsPort);
+            final int replayChannelPort = Integer.parseInt(replayPort);
+            final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            final ArchiveReplicatorAgent hostAgent = 
+                new ArchiveReplicatorAgent(thisHost, archiveHost, controlChannelPort,
                 recEventsChannelPort, replayChannelPort);
-            final var runner =
+            final AgentRunner runner =
                 new AgentRunner(new SleepingMillisIdleStrategy(), ArchiveReplicator::errorHandler, null, hostAgent);
 
             AgentRunner.startOnThread(runner);

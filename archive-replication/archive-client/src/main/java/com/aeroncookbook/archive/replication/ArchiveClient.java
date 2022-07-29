@@ -13,25 +13,25 @@ public class ArchiveClient
 
     public static void main(String[] args)
     {
-        final var thisHost = System.getenv().get("THISHOST");
-        final var archiveHost = System.getenv().get("ARCHIVEHOST");
-        final var backupHost = System.getenv().get("BACKUPHOST");
-        final var controlPort = System.getenv().get("CONTROLPORT");
-        final var eventPort = System.getenv().get("EVENTSPORT");
+        final String thisHost = System.getenv().get("THISHOST");
+        final String archiveHost = System.getenv().get("ARCHIVEHOST");
+        final String backupHost = System.getenv().get("BACKUPHOST");
+        final String controlPort = System.getenv().get("CONTROLPORT");
+        final String eventPort = System.getenv().get("EVENTSPORT");
 
         if (archiveHost == null || controlPort == null || thisHost == null || eventPort == null)
         {
             LOGGER.error("env vars required: THISHOST, ARCHIVEHOST, BACKUPHOST, CONTROLPORT, EVENTSPORT");
         } else
         {
-            final var controlChannelPort = Integer.parseInt(controlPort);
-            final var eventChannelPort = Integer.parseInt(eventPort);
-            final var barrier = new ShutdownSignalBarrier();
-            final var fragmentHandler = new ArchiveClientFragmentHandler();
+            final int controlChannelPort = Integer.parseInt(controlPort);
+            final int eventChannelPort = Integer.parseInt(eventPort);
+            final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            final ArchiveClientFragmentHandler fragmentHandler = new ArchiveClientFragmentHandler();
             final ArchiveClientAgent hostAgent =
                 new ArchiveClientAgent(archiveHost, thisHost, backupHost, controlChannelPort, eventChannelPort,
                     fragmentHandler);
-            final var runner =
+            final AgentRunner runner =
                 new AgentRunner(new SleepingMillisIdleStrategy(), ArchiveClient::errorHandler, null, hostAgent);
             AgentRunner.startOnThread(runner);
 

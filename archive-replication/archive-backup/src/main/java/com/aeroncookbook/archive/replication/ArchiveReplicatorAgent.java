@@ -1,6 +1,7 @@
 package com.aeroncookbook.archive.replication;
 
 import io.aeron.Aeron;
+import io.aeron.Subscription;
 import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.archive.ArchivingMediaDriver;
@@ -87,7 +88,7 @@ public class ArchiveReplicatorAgent implements Agent
         final String recordingEventsChannel =
             "aeron:udp?control-mode=dynamic|control=" + thisHost + ":" + recordingEventsPort;
 
-        final var archiveContext = new Archive.Context()
+        final Archive.Context archiveContext = new Archive.Context()
             .deleteArchiveOnStart(true)
             .errorHandler(this::errorHandler)
             .controlChannel(controlChannel)
@@ -97,12 +98,12 @@ public class ArchiveReplicatorAgent implements Agent
             .threadingMode(ArchiveThreadingMode.SHARED);
 
         //this is required for the AeronArchive client within the Aeron Archive host process for replication
-        final var archiveClientContext = new AeronArchive.Context()
+        final AeronArchive.Context archiveClientContext = new AeronArchive.Context()
             .controlResponseChannel(controlResponseChannel);
 
         archiveContext.archiveClientContext(archiveClientContext);
 
-        final var mediaDriverContext = new MediaDriver.Context()
+        final MediaDriver.Context mediaDriverContext = new MediaDriver.Context()
             .spiesSimulateConnection(true)
             .errorHandler(this::errorHandler)
             .threadingMode(ThreadingMode.SHARED)
@@ -129,10 +130,17 @@ public class ArchiveReplicatorAgent implements Agent
     {
         switch (currentState)
         {
-            case AERON_READY -> connectLocalArchive();
-            case ARCHIVE_READY -> connectAndReplicateRemoteArchive();
-            case REPLICATING -> idleStrategy.idle(); //aeron is doing all the replication work
-            default -> LOGGER.info("unknown state {}", currentState);
+            case AERON_READY:
+                connectLocalArchive();
+                break;
+            case ARCHIVE_READY:
+                connectAndReplicateRemoteArchive();
+                break;
+            case REPLICATING:
+                idleStrategy.idle(); //aeron is doing all the replication work
+                break;
+            default:
+                LOGGER.info("unknown state {}", currentState);
         }
 
         if (recordingSignalAdapter != null)
@@ -177,7 +185,7 @@ public class ArchiveReplicatorAgent implements Agent
             {
                 LOGGER.info("finding remote recording");
                 //archive is connected. find the recording on the remote archive host
-                final var recordingId = getRemoteRecordingId("aeron:ipc", STREAM_ID);
+                final long recordingId = getRemoteRecordingId("aeron:ipc", STREAM_ID);
                 if (recordingId != Long.MIN_VALUE)
                 {
                     LOGGER.info("remote recording id is {}", recordingId);
@@ -200,9 +208,9 @@ public class ArchiveReplicatorAgent implements Agent
         Objects.requireNonNull(archivingMediaDriver);
         Objects.requireNonNull(aeron);
 
-        final var localControlRequestChannel = AERON_UDP_ENDPOINT + host + ":" + controlChannelPort;
-        final var localControlResponseChannel = AERON_UDP_ENDPOINT + host + ":0";
-        final var localRecordingEventsChannel = "aeron:udp?control-mode=dynamic|control=" + host + ":"
+        final String localControlRequestChannel = AERON_UDP_ENDPOINT + host + ":" + controlChannelPort;
+        final String localControlResponseChannel = AERON_UDP_ENDPOINT + host + ":0";
+        final String localRecordingEventsChannel = "aeron:udp?control-mode=dynamic|control=" + host + ":"
             + recordingEventsPort;
 
 
@@ -215,14 +223,14 @@ public class ArchiveReplicatorAgent implements Agent
             .recordingEventsChannel(localRecordingEventsChannel)
             .idleStrategy(new SleepingMillisIdleStrategy()));
 
-        final var activityListener = new ArchiveActivityListener();
+        final ArchiveActivityListener activityListener = new ArchiveActivityListener();
         recordingSignalAdapter = new RecordingSignalAdapter(localArchiveClient.controlSessionId(), activityListener,
             activityListener, localArchiveClient.controlResponsePoller().subscription(), 10);
 
-        final var recordingChannel = localArchiveClient.context().recordingEventsChannel();
-        final var recordingStreamId = localArchiveClient.context().recordingEventsStreamId();
-        final var recordingEvents = aeron.addSubscription(recordingChannel, recordingStreamId);
-        final var progressListener = new ArchiveProgressListener();
+        final String recordingChannel = localArchiveClient.context().recordingEventsChannel();
+        final int recordingStreamId = localArchiveClient.context().recordingEventsStreamId();
+        final Subscription recordingEvents = aeron.addSubscription(recordingChannel, recordingStreamId);
+        final ArchiveProgressListener progressListener = new ArchiveProgressListener();
         recordingEventsAdapter = new RecordingEventsAdapter(progressListener, recordingEvents, 10);
 
         this.currentState = State.ARCHIVE_READY;
@@ -230,7 +238,7 @@ public class ArchiveReplicatorAgent implements Agent
 
     private long getRemoteRecordingId(final String remoteRecordedChannel, final int remoteRecordedStream)
     {
-        final var lastRecordingId = new MutableLong();
+        final MutableLong lastRecordingId = new MutableLong();
         final RecordingDescriptorConsumer consumer = (controlSessionId, correlationId, recordingId,
                                                       startTimestamp, stopTimestamp, startPosition,
                                                       stopPosition, initialTermId, segmentFileLength,
@@ -238,8 +246,8 @@ public class ArchiveReplicatorAgent implements Agent
                                                       streamId, strippedChannel, originalChannel,
                                                       sourceIdentity) -> lastRecordingId.set(recordingId);
 
-        final var fromRecordingId = 0L;
-        final var recordCount = 100;
+        final long fromRecordingId = 0L;
+        final int recordCount = 100;
 
         final int foundCount = remoteArchiveClient.listRecordingsForUri(fromRecordingId, recordCount,
             remoteRecordedChannel, remoteRecordedStream, consumer);
@@ -271,14 +279,15 @@ public class ArchiveReplicatorAgent implements Agent
             final Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
             while (interfaceEnumeration.hasMoreElements())
             {
-                final var networkInterface = interfaceEnumeration.nextElement();
+                final NetworkInterface networkInterface = interfaceEnumeration.nextElement();
 
                 if (networkInterface.getName().startsWith("eth0"))
                 {
                     Enumeration<InetAddress> interfaceAddresses = networkInterface.getInetAddresses();
                     while (interfaceAddresses.hasMoreElements())
                     {
-                        if (interfaceAddresses.nextElement() instanceof Inet4Address inet4Address)
+                        InetAddress inet4Address = interfaceAddresses.nextElement();
+                        if (inet4Address instanceof Inet4Address)
                         {
                             LOGGER.info("detected ip4 address as {}", inet4Address.getHostAddress());
                             return inet4Address.getHostAddress();

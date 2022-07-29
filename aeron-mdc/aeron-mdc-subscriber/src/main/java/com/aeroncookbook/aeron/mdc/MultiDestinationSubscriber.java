@@ -13,20 +13,20 @@ public class MultiDestinationSubscriber
 
     public static void main(String[] args)
     {
-        final var thisHost = System.getenv().get("THISHOST");
-        final var mdcHost = System.getenv().get("MDCHOST");
-        final var controlPort = System.getenv().get("CONTROLPORT");
+        final String thisHost = System.getenv().get("THISHOST");
+        final String mdcHost = System.getenv().get("MDCHOST");
+        final String controlPort = System.getenv().get("CONTROLPORT");
 
         if (mdcHost == null || controlPort == null || thisHost == null)
         {
             LOGGER.error("env vars required: THISHOST, MDCHOST, CONTROLPORT");
         } else
         {
-            final var controlChannelPort = Integer.parseInt(controlPort);
-            final var barrier = new ShutdownSignalBarrier();
+            final int controlChannelPort = Integer.parseInt(controlPort);
+            final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
             final MultiDestinationSubscriberAgent hostAgent =
                 new MultiDestinationSubscriberAgent(mdcHost, thisHost, controlChannelPort);
-            final var runner =
+            final AgentRunner runner =
                 new AgentRunner(new SleepingMillisIdleStrategy(), MultiDestinationSubscriber::errorHandler,
                     null, hostAgent);
             AgentRunner.startOnThread(runner);

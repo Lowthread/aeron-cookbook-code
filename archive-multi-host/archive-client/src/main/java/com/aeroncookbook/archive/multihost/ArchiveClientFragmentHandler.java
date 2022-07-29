@@ -13,7 +13,7 @@ public class ArchiveClientFragmentHandler implements FragmentHandler
     @Override
     public void onFragment(DirectBuffer buffer, int offset, int length, Header header)
     {
-        final var read = buffer.getLong(offset);
+        final long read = buffer.getLong(offset);
         LOGGER.info("received {}", read);
     }
 }

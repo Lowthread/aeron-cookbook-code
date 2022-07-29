@@ -26,6 +26,19 @@ services:
     networks:
       default:
         ipv4_address: 10.1.0.3
+  # archive-client2:
+  #   shm_size: "1gb"
+  #   build:
+  #     context: ./archive-client
+  #   environment:
+  #     - ARCHIVEHOST=archive-host
+  #     - THISHOST=archive-client2
+  #     - CONTROLPORT=17000
+  #     - EVENTSPORT=17001
+  #   hostname: archive-client2
+  #   networks:
+  #     default:
+  #       ipv4_address: 10.1.0.4
 networks:
   default:
     driver: bridge

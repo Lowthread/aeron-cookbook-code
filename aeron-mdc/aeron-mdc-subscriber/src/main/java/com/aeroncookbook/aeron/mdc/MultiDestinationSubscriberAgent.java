@@ -42,7 +42,7 @@ public class MultiDestinationSubscriberAgent implements Agent
             .idleStrategy(new SleepingMillisIdleStrategy()));
 
         //add the MDC subscription
-        final var channel = "aeron:udp?endpoint=" + localHost(thisHost)
+        final String channel = "aeron:udp?endpoint=" + localHost(thisHost)
             + ":12001|control=" + mdcHost + ":" + controlPort + "|control-mode=dynamic";
         LOGGER.info("adding the subscription to channel: {}", channel);
         mdcSubscription = aeron.addSubscription(channel, STREAM_ID);
@@ -75,14 +75,15 @@ public class MultiDestinationSubscriberAgent implements Agent
             final Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
             while (interfaceEnumeration.hasMoreElements())
             {
-                final var networkInterface = interfaceEnumeration.nextElement();
+                final NetworkInterface networkInterface = interfaceEnumeration.nextElement();
 
                 if (networkInterface.getName().startsWith("eth0"))
                 {
                     Enumeration<InetAddress> interfaceAddresses = networkInterface.getInetAddresses();
                     while (interfaceAddresses.hasMoreElements())
                     {
-                        if (interfaceAddresses.nextElement() instanceof Inet4Address inet4Address)
+                        InetAddress inet4Address = interfaceAddresses.nextElement();
+                        if (inet4Address instanceof Inet4Address)
                         {
                             LOGGER.info("detected ip4 address as {}", inet4Address.getHostAddress());
                             return inet4Address.getHostAddress();

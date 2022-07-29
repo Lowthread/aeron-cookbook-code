@@ -71,9 +71,14 @@ public class ArchiveClientAgent implements Agent
     {
         switch (currentState)
         {
-            case AERON_READY -> connectToArchive();
-            case POLLING_SUBSCRIPTION -> replayDestinationSubs.poll(fragmentHandler, 100);
-            default -> LOGGER.error("unknown state {}", currentState);
+            case AERON_READY: 
+                connectToArchive();
+                break;
+            case POLLING_SUBSCRIPTION:
+                replayDestinationSubs.poll(fragmentHandler, 100);
+                break;
+            default:
+                LOGGER.error("unknown state {}", currentState);
         }
 
         return 0;
@@ -109,15 +114,15 @@ public class ArchiveClientAgent implements Agent
             {
                 LOGGER.info("finding remote recording");
                 //archive is connected. find the recording on the remote archive host
-                final var recordingId = getRecordingId("aeron:ipc", RECORDED_STREAM_ID);
+                final long recordingId = getRecordingId("aeron:ipc", RECORDED_STREAM_ID);
                 if (recordingId != Long.MIN_VALUE)
                 {
                     //ask aeron to assign an ephemeral port for this replay
-                    final var localReplayChannelEphemeral = AERON_UDP_ENDPOINT + thisHost + ":0";
+                    final String localReplayChannelEphemeral = AERON_UDP_ENDPOINT + thisHost + ":0";
                     //construct a local subscription for the remote host to replay to
                     replayDestinationSubs = aeron.addSubscription(localReplayChannelEphemeral, REPLAY_STREAM_ID);
                     //resolve the actual port and use that for the replay
-                    final var actualReplayChannel = replayDestinationSubs.tryResolveChannelEndpointPort();
+                    final String actualReplayChannel = replayDestinationSubs.tryResolveChannelEndpointPort();
                     LOGGER.info("actualReplayChannel={}", actualReplayChannel);
                     //replay from the archive recording the start
                     long replaySession =
@@ -136,7 +141,7 @@ public class ArchiveClientAgent implements Agent
 
     private long getRecordingId(final String remoteRecordedChannel, final int remoteRecordedStream)
     {
-        final var lastRecordingId = new MutableLong();
+        final MutableLong lastRecordingId = new MutableLong();
         final RecordingDescriptorConsumer consumer = (controlSessionId, correlationId, recordingId,
                                                       startTimestamp, stopTimestamp, startPosition,
                                                       stopPosition, initialTermId, segmentFileLength,
@@ -144,8 +149,8 @@ public class ArchiveClientAgent implements Agent
                                                       streamId, strippedChannel, originalChannel,
                                                       sourceIdentity) -> lastRecordingId.set(recordingId);
 
-        final var fromRecordingId = 0L;
-        final var recordCount = 100;
+        final long fromRecordingId = 0L;
+        final int recordCount = 100;
 
         final int foundCount = archive.listRecordingsForUri(fromRecordingId, recordCount, remoteRecordedChannel,
             remoteRecordedStream, consumer);
@@ -178,14 +183,15 @@ public class ArchiveClientAgent implements Agent
             final Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
             while (interfaceEnumeration.hasMoreElements())
             {
-                final var networkInterface = interfaceEnumeration.nextElement();
+                final NetworkInterface networkInterface = interfaceEnumeration.nextElement();
 
                 if (networkInterface.getName().startsWith("eth0"))
                 {
                     Enumeration<InetAddress> interfaceAddresses = networkInterface.getInetAddresses();
                     while (interfaceAddresses.hasMoreElements())
                     {
-                        if (interfaceAddresses.nextElement() instanceof Inet4Address inet4Address)
+                        InetAddress inet4Address = interfaceAddresses.nextElement();
+                        if (inet4Address instanceof Inet4Address)
                         {
                             LOGGER.info("detected ip4 address as {}", inet4Address.getHostAddress());
                             return inet4Address.getHostAddress();

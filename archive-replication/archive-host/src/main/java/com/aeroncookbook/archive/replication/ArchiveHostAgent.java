@@ -2,6 +2,7 @@ package com.aeroncookbook.archive.replication;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import io.aeron.Subscription;
 import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.archive.ArchivingMediaDriver;
@@ -84,7 +85,7 @@ public class ArchiveHostAgent implements Agent
         final String recordingEventsChannel =
             "aeron:udp?control-mode=dynamic|control=" + host + ":" + recordingEventsPort;
 
-        final var archiveContext = new Archive.Context()
+        final Archive.Context archiveContext = new Archive.Context()
             .deleteArchiveOnStart(true)
             .errorHandler(this::errorHandler)
             .controlChannel(controlChannel)
@@ -92,7 +93,7 @@ public class ArchiveHostAgent implements Agent
             .idleStrategySupplier(SleepingMillisIdleStrategy::new)
             .threadingMode(ArchiveThreadingMode.SHARED);
 
-        final var mediaDriverContext = new MediaDriver.Context()
+        final MediaDriver.Context mediaDriverContext = new MediaDriver.Context()
             .spiesSimulateConnection(true)
             .errorHandler(this::errorHandler)
             .threadingMode(ThreadingMode.SHARED)
@@ -119,9 +120,14 @@ public class ArchiveHostAgent implements Agent
     {
         switch (currentState)
         {
-            case AERON_READY -> createArchiveAndRecord();
-            case ARCHIVE_READY -> appendData();
-            default -> LOGGER.info("unknown state {}", currentState);
+            case AERON_READY:
+                createArchiveAndRecord();
+                break;
+            case ARCHIVE_READY:
+                appendData();
+                break;
+            default:
+                LOGGER.info("unknown state {}", currentState);
         }
 
         if (recordingSignalAdapter != null)
@@ -154,9 +160,10 @@ public class ArchiveHostAgent implements Agent
         Objects.requireNonNull(archivingMediaDriver);
         Objects.requireNonNull(aeron);
 
-        final var controlRequestChannel = AERON_UDP_ENDPOINT + host + ":" + controlChannelPort;
-        final var controlResponseChannel = AERON_UDP_ENDPOINT + host + ":0";
-        final var recordingEventsChannel = "aeron:udp?control-mode=dynamic|control=" + host + ":" + recordingEventsPort;
+        final String controlRequestChannel = AERON_UDP_ENDPOINT + host + ":" + controlChannelPort;
+        final String controlResponseChannel = AERON_UDP_ENDPOINT + host + ":0";
+        final String recordingEventsChannel = 
+            "aeron:udp?control-mode=dynamic|control=" + host + ":" + recordingEventsPort;
 
         LOGGER.info("creating archive");
 
@@ -176,7 +183,7 @@ public class ArchiveHostAgent implements Agent
         archive.startRecording("aeron:ipc", STREAM_ID, SourceLocation.LOCAL);
 
         LOGGER.info("waiting for recording to start for session {}", publication.sessionId());
-        final var counters = aeron.countersReader();
+        final CountersReader counters = aeron.countersReader();
         int counterId = RecordingPos.findCounterIdBySession(counters, publication.sessionId());
         while (CountersReader.NULL_COUNTER_ID == counterId)
         {
@@ -185,14 +192,14 @@ public class ArchiveHostAgent implements Agent
         }
         final long recordingId = RecordingPos.getRecordingId(counters, counterId);
 
-        final var activityListener = new ArchiveActivityListener();
+        final ArchiveActivityListener activityListener = new ArchiveActivityListener();
         recordingSignalAdapter = new RecordingSignalAdapter(archive.controlSessionId(), activityListener,
             activityListener, archive.controlResponsePoller().subscription(), 10);
 
-        final var recordingChannel = archive.context().recordingEventsChannel();
-        final var recordingStreamId = archive.context().recordingEventsStreamId();
-        final var recordingEvents = aeron.addSubscription(recordingChannel, recordingStreamId);
-        final var progressListener = new ArchiveProgressListener();
+        final String recordingChannel = archive.context().recordingEventsChannel();
+        final int recordingStreamId = archive.context().recordingEventsStreamId();
+        final Subscription recordingEvents = aeron.addSubscription(recordingChannel, recordingStreamId);
+        final ArchiveProgressListener progressListener = new ArchiveProgressListener();
         recordingEventsAdapter = new RecordingEventsAdapter(progressListener, recordingEvents, 10);
 
         LOGGER.info("archive recording started; recording id is {}", recordingId);
@@ -218,14 +225,15 @@ public class ArchiveHostAgent implements Agent
             final Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
             while (interfaceEnumeration.hasMoreElements())
             {
-                final var networkInterface = interfaceEnumeration.nextElement();
+                final NetworkInterface networkInterface = interfaceEnumeration.nextElement();
 
                 if (networkInterface.getName().startsWith("eth0"))
                 {
                     Enumeration<InetAddress> interfaceAddresses = networkInterface.getInetAddresses();
                     while (interfaceAddresses.hasMoreElements())
                     {
-                        if (interfaceAddresses.nextElement() instanceof Inet4Address inet4Address)
+                        InetAddress inet4Address = interfaceAddresses.nextElement();
+                        if (inet4Address instanceof Inet4Address)
                         {
                             LOGGER.info("detected ip4 address as {}", inet4Address.getHostAddress());
                             return inet4Address.getHostAddress();

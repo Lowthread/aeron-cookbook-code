@@ -16,27 +16,27 @@ class SnowflakeTests
     @Test
     void shouldGenerateId()
     {
-        final var snowflake = new SnowflakeIdGenerator(1L);
-        final var nextId = snowflake.nextId();
+        final SnowflakeIdGenerator snowflake = new SnowflakeIdGenerator(1L);
+        final long nextId = snowflake.nextId();
         assertNotEquals(0L, nextId);
     }
 
     @Test
     void allowsExtractionOfTimeNodeSequence()
     {
-        final var clock = new CachedEpochClock();
-        final var timestampOffset = 1609459200000L; //January 1, 2021 12:00:00 AM
+        final CachedEpochClock clock = new CachedEpochClock();
+        final long timestampOffset = 1609459200000L; //January 1, 2021 12:00:00 AM
         clock.update(SystemEpochClock.INSTANCE.time()); //cached epoch clock is used to control time in the test.
-        final var snowflake = new SnowflakeIdGenerator(NODE_ID_BITS_DEFAULT, SEQUENCE_BITS_DEFAULT,
+        final SnowflakeIdGenerator snowflake = new SnowflakeIdGenerator(NODE_ID_BITS_DEFAULT, SEQUENCE_BITS_DEFAULT,
             1L, timestampOffset, clock);
 
         //extract the time, node and sequence
-        final var nextId = snowflake.nextId();
+        final long nextId = snowflake.nextId();
         assertEquals(clock.time() - timestampOffset, nextId >>> MAX_NODE_ID_AND_SEQUENCE_BITS);
         assertEquals(1L, (nextId >>> SEQUENCE_BITS_DEFAULT) & snowflake.maxNodeId());
         assertEquals(0L, nextId & snowflake.maxSequence());
 
-        final var nextNextId = snowflake.nextId();
+        final long nextNextId = snowflake.nextId();
         assertEquals(clock.time() - timestampOffset, nextNextId >>> MAX_NODE_ID_AND_SEQUENCE_BITS);
         assertEquals(1L, (nextNextId >>> SEQUENCE_BITS_DEFAULT) & snowflake.maxNodeId());
         assertEquals(1L, nextNextId & snowflake.maxSequence());

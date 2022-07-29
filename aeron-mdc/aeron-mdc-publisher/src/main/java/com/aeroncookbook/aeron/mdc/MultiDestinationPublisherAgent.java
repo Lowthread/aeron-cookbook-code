@@ -39,7 +39,7 @@ public class MultiDestinationPublisherAgent implements Agent
 
         this.aeron = launchAeron(mediaDriver);
         LOGGER.info("Media Driver directory is {}", mediaDriver.aeronDirectoryName());
-        final var publicationChannel = "aeron:udp?control-mode=dynamic|control=" + localHost(host)
+        final String publicationChannel = "aeron:udp?control-mode=dynamic|control=" + localHost(host)
             + ":" + controlChannelPort;
         LOGGER.info("creating publication");
         publication = aeron.addExclusivePublication(publicationChannel, STREAM_ID);
@@ -57,7 +57,7 @@ public class MultiDestinationPublisherAgent implements Agent
     private MediaDriver launchMediaDriver()
     {
         LOGGER.info("launching media driver");
-        final var mediaDriverContext = new MediaDriver.Context()
+        final MediaDriver.Context mediaDriverContext = new MediaDriver.Context()
             .spiesSimulateConnection(true)
             .errorHandler(this::errorHandler)
             .threadingMode(ThreadingMode.SHARED)
@@ -111,14 +111,15 @@ public class MultiDestinationPublisherAgent implements Agent
             final Enumeration<NetworkInterface> interfaceEnumeration = NetworkInterface.getNetworkInterfaces();
             while (interfaceEnumeration.hasMoreElements())
             {
-                final var networkInterface = interfaceEnumeration.nextElement();
+                final NetworkInterface networkInterface = interfaceEnumeration.nextElement();
 
                 if (networkInterface.getName().startsWith("eth0"))
                 {
                     Enumeration<InetAddress> interfaceAddresses = networkInterface.getInetAddresses();
                     while (interfaceAddresses.hasMoreElements())
                     {
-                        if (interfaceAddresses.nextElement() instanceof Inet4Address inet4Address)
+                        InetAddress inet4Address = interfaceAddresses.nextElement();
+                        if (inet4Address instanceof Inet4Address)
                         {
                             LOGGER.info("detected ip4 address as {}", inet4Address.getHostAddress());
                             return inet4Address.getHostAddress();

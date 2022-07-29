@@ -1,7 +1,4 @@
-ARG REPO_NAME=docker.io/
-ARG IMAGE_NAME=aeroncookbook/jdk17
-ARG IMAGE_TAG=latest
-FROM ${REPO_NAME}${IMAGE_NAME}:${IMAGE_TAG}
+FROM aeron-java8
 SHELL [ "/bin/bash", "-o", "pipefail", "-c" ]
 WORKDIR /root/jar/
 COPY --chmod=755 /build/libs/archive-client-0.1-SNAPSHOT-all.jar /root/jar/archive-client-0.1-SNAPSHOT-all.jar

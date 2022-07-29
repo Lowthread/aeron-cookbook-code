@@ -13,18 +13,19 @@ public class MultiDestinationPublisher
 
     public static void main(String[] args)
     {
-        final var mdcHost = System.getenv().get("MDCHOST");
-        final var controlPort = System.getenv().get("CONTROLPORT");
+        final String mdcHost = System.getenv().get("MDCHOST");
+        final String controlPort = System.getenv().get("CONTROLPORT");
 
         if (mdcHost == null || controlPort == null)
         {
             LOGGER.error("requires 2 env vars: MDCHOST, CONTROLPORT");
         } else
         {
-            final var controlChannelPort = Integer.parseInt(controlPort);
-            final var barrier = new ShutdownSignalBarrier();
-            final var hostAgent = new MultiDestinationPublisherAgent(mdcHost, controlChannelPort);
-            final var runner =
+            final int controlChannelPort = Integer.parseInt(controlPort);
+            final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            final MultiDestinationPublisherAgent hostAgent = 
+                new MultiDestinationPublisherAgent(mdcHost, controlChannelPort);
+            final AgentRunner runner =
                 new AgentRunner(new SleepingMillisIdleStrategy(), MultiDestinationPublisher::errorHandler,
                     null, hostAgent);
 
